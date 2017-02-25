@@ -7,7 +7,7 @@
 void compute() {
 
 	double t0, t1;
-    
+
 	// Loop 0.
 	t0 = wtime();
 	for (int i = 0; i < N; i++) {
@@ -31,7 +31,7 @@ void compute() {
 			float s = m[j] * r6inv;
 			ax[i] += s * rx;
 			ay[i] += s * ry;
-			az[i] += s * rz;	
+			az[i] += s * rz;
 		}
 	}
 	t1 = wtime();
@@ -48,17 +48,17 @@ void compute() {
 	l2 += (t1 - t0);
 
 	// Loop 3.
-	t0 = wtime();		
+	t0 = wtime();
 	for (int i = 0; i < N; i++) {
 		x[i] += dt * vx[i];
 		y[i] += dt * vy[i];
 		z[i] += dt * vz[i];
 		if (x[i] >= 1.0f || x[i] <= -1.0f) vx[i] *= -1.0f;
 		if (y[i] >= 1.0f || y[i] <= -1.0f) vy[i] *= -1.0f;
-		if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;				
-		
+		if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;
+
 	}
 	t1 = wtime();
 	l3 += (t1 - t0);
-	
+
 }
