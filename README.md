@@ -19,6 +19,7 @@ CS257 Optimisation Coursework
  Total  = 16.045573 seconds.
 
  GFLOP/s = 1.245203
+ 
  GB/s = 0.002493
 
  Answer = 86672752.000000
