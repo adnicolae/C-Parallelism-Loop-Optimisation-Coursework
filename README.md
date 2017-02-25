@@ -9,9 +9,13 @@ CS257 Optimisation Coursework
 
 
  Loop 0 = 0.004863 seconds.
+ 
  Loop 1 = 16.031893 seconds.
+ 
  Loop 2 = 0.003379 seconds.
+ 
  Loop 3 = 0.005438 seconds.
+ 
  Total  = 16.045573 seconds.
 
  GFLOP/s = 1.245203
