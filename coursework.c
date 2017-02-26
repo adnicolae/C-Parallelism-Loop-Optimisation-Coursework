@@ -20,7 +20,8 @@ void compute() {
 
     // Loop 1.
 	t0 = wtime();
-	for (int i = 0; i < N; i++) {
+	int unroll_n = (N/4) * 4;
+	for (int i = 0; i < unroll_n; i+=4) {
 		for (int j = 0; j < N; j++) {
 			float rx = x[j] - x[i];
 			float ry = y[j] - y[i];
@@ -32,6 +33,39 @@ void compute() {
 			ax[i] += s * rx;
 			ay[i] += s * ry;
 			az[i] += s * rz;
+			// unroll for 1
+			rx = x[j] - x[i+1];
+			ry = x[j] + y[i+1];
+			rz = z[j] + z[i+1];
+			r2 = rx * rx + ry * ry + rz * rz + eps;
+			r2inv = 1.0f / sqrt(r2);
+			r6inv = r2inv * r2inv * r2inv;
+			s = m[j] * r6inv;
+			ax[i+1] += s * rx;
+			ay[i+1] += s * ry;
+			az[i+1] += s * rz;
+			// unroll for 3
+			rx = x[j] - x[i+2];
+			ry = x[j] + y[i+2];
+			rz = z[j] + z[i+2];
+			r2 = rx * rx + ry * ry + rz * rz + eps;
+			r2inv = 1.0f / sqrt(r2);
+			r6inv = r2inv * r2inv * r2inv;
+			s = m[j] * r6inv;
+			ax[i+2] += s * rx;
+			ay[i+2] += s * ry;
+			az[i+2] += s * rz;
+			// unroll for 4
+			rx = x[j] - x[i+3];
+			ry = x[j] + y[i+3];
+			rz = z[j] + z[i+3];
+			r2 = rx * rx + ry * ry + rz * rz + eps;
+			r2inv = 1.0f / sqrt(r2);
+			r6inv = r2inv * r2inv * r2inv;
+			s = m[j] * r6inv;
+			ax[i+3] += s * rx;
+			ay[i+3] += s * ry;
+			az[i+3] += s * rz;
 		}
 	}
 	t1 = wtime();
