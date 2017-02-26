@@ -23,3 +23,24 @@ CS257 Optimisation Coursework
  GB/s = 0.002493
 
  Answer = 86672752.000000
+ 
+ 
+ Loop 1 Unrolling by a factor 4 results (1000 1000 0)
+ ----------------------------------------------------
+ Loop 0 = 0.009664 seconds.
+  
+ Loop 1 = 16.067531 seconds.
+ 
+ Loop 2 = 0.003277 seconds.
+ 
+ Loop 3 = 0.008118 seconds.
+ 
+ Total  = 16.088589 seconds.
+
+ GFLOP/s = 1.241874
+ 
+ GB/s = 0.002486
+
+ Answer = 13772848.000000
+ 
+ Observation: The timings for the loop did not improve at all, the answer has dramatically changed, GFLOP stays the same.
