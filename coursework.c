@@ -12,9 +12,16 @@ void compute() {
 	t0 = wtime();
 	for (int i = 0; i < N; i++) {
 		ax[i] = 0.0f;
+	}
+
+	for (int i = 0; i < N; i++) {
 		ay[i] = 0.0f;
+	}
+
+	for (int i = 0; i < N; i++) {
 		az[i] = 0.0f;
 	}
+
 	t1 = wtime();
 	l0 += (t1 - t0);
 
