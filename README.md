@@ -41,6 +41,28 @@ CS257 Optimisation Coursework
  
  GB/s = 0.002486
 
- Answer = 13772848.000000
+ Answer = 13772848.000000 (answer is way off, need to take a look at this)
  
  Observation: The timings for the loop did not improve at all, the answer has dramatically changed, GFLOP stays the same.
+ 
+ Using SSE first attempt
+ -----------------------------------------------------------------------
+ __m128 r2inv_v = _mm_div_ps(_mm_set1_ps(1.0f),_mm_sqrt_ps(r2_v));
+ loop interchanged
+ everything inside the inner loop
+ 
+ Loop 0 = 0.004085 seconds. (loop fission)
+ 
+ Loop 1 = 3.475009 seconds.
+ 
+ Loop 2 = 0.004975 seconds.
+ 
+ Loop 3 = 0.007287 seconds.
+ 
+ Total  = 3.491356 seconds.
+
+ GFLOP/s = 5.722705
+ GB/s = 0.011457
+
+ Answer = 90729344.000000 (answer is off by 4.57% increase)
+ 
