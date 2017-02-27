@@ -66,3 +66,7 @@ CS257 Optimisation Coursework
 
  Answer = 90729344.000000 (answer is off by 4.57% increase)
  
+ ----------------------------------------------------
+ Attempt at improving locality by using loads in the outer loop,
+ but the speed decreased by at least 0.6s
+ ----------------------------------------------------
