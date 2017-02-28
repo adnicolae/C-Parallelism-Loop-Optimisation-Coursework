@@ -70,3 +70,8 @@ CS257 Optimisation Coursework
  Attempt at improving locality by using loads in the outer loop,
  but the speed decreased by at least 0.6s
  ----------------------------------------------------
+ __m128 r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;   // GNU extension
+ gives answer 84007608.000000 but decreased speed from 3.47 to 3.7/4 and gflop from 5.72 to 5.27/4.9
+ compared to 			__m128 r2_v = _mm_mul_ps(rx_v, rx_v) + _mm_mul_ps(ry_v, ry_v) + _mm_mul_ps(rz_v, rz_v) + _mm_set1_ps(eps);
+ ----------------------------------------------------
+ 
