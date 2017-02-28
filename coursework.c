@@ -35,11 +35,11 @@ void compute() {
 			__m128 xj_v = _mm_set1_ps(x[j]);
 			__m128 xi_v = _mm_load_ps(&x[i]);
 			__m128 rx_v = _mm_sub_ps(xj_v, xi_v);
-
+			
 			__m128 yj_v = _mm_set1_ps(y[j]);
 			__m128 yi_v = _mm_load_ps(&y[i]);
 			__m128 ry_v = _mm_sub_ps(yj_v, yi_v);
-
+			
 			__m128 zj_v = _mm_set1_ps(z[j]);
 			__m128 zi_v = _mm_load_ps(&z[i]);
 			__m128 rz_v = _mm_sub_ps(zj_v, zi_v);
