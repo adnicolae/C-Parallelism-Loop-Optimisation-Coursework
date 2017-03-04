@@ -32,21 +32,25 @@ void compute() {
     int i, j;
 
     for (j = 0; j < N; j ++) {
+        __m128 xj_v = _mm_set1_ps(x[j]);
+        __m128 yj_v = _mm_set1_ps(y[j]);
+        __m128 zj_v = _mm_set1_ps(z[j]);
+        __m128 mj_v = _mm_set1_ps(m[j]);
         for (i = 0; i < unroll_n; i+=4) {
-			__m128 xj_v = _mm_set1_ps(x[j]);
+
 			__m128 xi_v = _mm_load_ps(&x[i]);
 			__m128 rx_v = _mm_sub_ps(xj_v, xi_v);
 
-			__m128 yj_v = _mm_set1_ps(y[j]);
+
 			__m128 yi_v = _mm_load_ps(&y[i]);
 			__m128 ry_v = _mm_sub_ps(yj_v, yi_v);
 
-			__m128 zj_v = _mm_set1_ps(z[j]);
+
 			__m128 zi_v = _mm_load_ps(&z[i]);
 			__m128 rz_v = _mm_sub_ps(zj_v, zi_v);
 
 
-			__m128 mj_v = _mm_set1_ps(m[j]);
+
 
 			// __m128 r2_v = _mm_mul_ps(rx_v, rx_v) + _mm_mul_ps(ry_v, ry_v) + _mm_mul_ps(rz_v, rz_v) + _mm_set1_ps(eps);
 			__m128 r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;   // GNU extension
