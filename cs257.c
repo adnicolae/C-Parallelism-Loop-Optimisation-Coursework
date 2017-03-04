@@ -79,7 +79,7 @@ void init() {
 	vy = (float*) _mm_malloc(N * sizeof(float), 16);
     vz = (float*) _mm_malloc(N * sizeof(float), 16);
 	m = (float*) _mm_malloc(N * sizeof(float), 16);
-	
+
 	// Color!
 	c = (float*) malloc(3 * N * sizeof(float));
 
@@ -102,22 +102,22 @@ void init() {
 		m[i] = (rand() / (float) RAND_MAX) * mscale;
 		c[3*i+0] = (rand() / (float) RAND_MAX);
 		c[3*i+1] = (rand() / (float) RAND_MAX);
-		c[3*i+2] = (rand() / (float) RAND_MAX);				
+		c[3*i+2] = (rand() / (float) RAND_MAX);
 	}
-		    
+
     // Initialise visualisation stuff.
     if (vis) {
     	glutInitWindowPosition(100, 100);
     	glutInitWindowSize(500, 500);
     	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
     	glutCreateWindow("CS257 Coursework - Visualisation Window");
-    	
+
     	glClearColor(0, 0, 0, 0);
     	glEnable(GL_DEPTH_TEST);
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);    	
-        glHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_FASTEST);	
-    	
-    	glutDisplayFunc(render); 
+        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+        glHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_FASTEST);
+
+    	glutDisplayFunc(render);
     	glutIdleFunc(update);
     }
 
@@ -127,17 +127,17 @@ void init() {
  * Render stuff.
  * (Disks in place of spheres accelerates rendering.)
  */
-void render() {   
-    
+void render() {
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
     glMatrixMode(GL_MODELVIEW);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
     for (int i = 0; i < N; i++) {
         glPushMatrix();
-        glTranslatef(x[i], y[i], z[i]);        
+        glTranslatef(x[i], y[i], z[i]);
         glColor3f(c[3*i+0], c[3*i+1], c[3*i+2]);
         glBegin(GL_QUADS);
             glVertex3f(-m[i]*0.01f, -m[i]*0.01f, 0);
@@ -160,7 +160,7 @@ void render() {
  */
 #define FPS 60.0f
 void update() {
-	
+
 	double t_start = wtime();
 	compute();
 	double t_end = wtime();
@@ -168,7 +168,7 @@ void update() {
 	    unsigned int usecs = (unsigned int) (((1.0f/FPS) - (t_end - t_start)) * 1E6);
             usleep(usecs);
 	}
-	
+
 	if (vis) glutPostRedisplay();
 	check_exit(t++);
 
@@ -180,9 +180,9 @@ void update() {
 void check_exit(int t) {
 
 	if (t >= steps) {
-	
+
 	    // Print results and stuff.
-	    printf("\n");	
+	    printf("\n");
 	    printf(" Loop 0 = %f seconds.\n", l0);
 	    printf(" Loop 1 = %f seconds.\n", l1);
 	    printf(" Loop 2 = %f seconds.\n", l2);
@@ -191,21 +191,21 @@ void check_exit(int t) {
 	    printf("\n");
 	    double flops = 20.0f * (double) N * (double) (N-1) * (double) steps;
 	    printf(" GFLOP/s = %f\n", flops / 1000000000.0f / (l0 + l1 + l2 + l3));
-	    
+
 	    double bytes = 4.0f * (double) N * 10.0f * (double) steps;
 	    printf(" GB/s = %f\n", bytes / 1000000000.0f / (l0 + l1 + l2 + l3));
-	    printf("\n");	
+	    printf("\n");
 
 	    // Verify solution.
 	    verify();
-	    printf("\n");	
+	    printf("\n");
 
 	    // Tidy up.
 	    cleanup();
             exit(0);
-	    
+
 	}
-	
+
 }
 
 /**
@@ -215,7 +215,7 @@ void verify() {
 
     float phi = 0.0f;
 	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) { 
+		for (int j = 0; j < N; j++) {
 			float rx = x[j] - x[i];
 			float ry = y[j] - y[i];
 			float rz = z[j] - z[i];
@@ -225,9 +225,9 @@ void verify() {
 			phi += m[j] * r6inv;
 		}
 	}
-	
+
 	printf(" Answer = %f\n", phi);
-	
+
 }
 
 /**
@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
 	printf(" Starting simulation of %d stars for %d timesteps.\n",  N, steps);
 
     // Initialise and run stuff.
-    if (vis) glutInit(&argc, argv);   
+    if (vis) glutInit(&argc, argv);
 	init();
 	if (vis) {
 	    glutMainLoop();

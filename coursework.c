@@ -29,9 +29,10 @@ void compute() {
     // Loop 1.
 	t0 = wtime();
 	int unroll_n = (N/4) * 4;
+    int i, j;
 
-	for (int j = 0; j < N; j++) {
-		for (int i = 0; i < N; i+=4) {
+    for (j = 0; j < N; j ++) {
+        for (i = 0; i < unroll_n; i+=4) {
 			__m128 xj_v = _mm_set1_ps(x[j]);
 			__m128 xi_v = _mm_load_ps(&x[i]);
 			__m128 rx_v = _mm_sub_ps(xj_v, xi_v);
@@ -49,7 +50,8 @@ void compute() {
 
 			// __m128 r2_v = _mm_mul_ps(rx_v, rx_v) + _mm_mul_ps(ry_v, ry_v) + _mm_mul_ps(rz_v, rz_v) + _mm_set1_ps(eps);
 			__m128 r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;   // GNU extension
-			__m128 r2inv_v = _mm_div_ps(_mm_set1_ps(1.0f),_mm_sqrt_ps(r2_v));
+			__m128 r2inv_v = _mm_rsqrt_ps(r2_v);
+            // _mm_div_ps(_mm_set1_ps(1.0f),_mm_sqrt_ps(r2_v));
 			__m128 r6inv_1v = _mm_mul_ps(r2inv_v, r2inv_v);
 			__m128 r6inv_v = _mm_mul_ps(r6inv_1v, r2inv_v);
 
@@ -71,6 +73,18 @@ void compute() {
 			_mm_store_ps(&ay[i], ayi_v);
 			_mm_store_ps(&az[i], azi_v);
 	    }
+        for (; i < N; i++) {
+			float rx = x[j] - x[i];
+			float ry = y[j] - y[i];
+			float rz = z[j] - z[i];
+			float r2 = rx*rx + ry*ry + rz*rz + eps;
+			float r2inv = 1.0f / sqrt(r2);
+			float r6inv = r2inv * r2inv * r2inv;
+			float s = m[j] * r6inv;
+			ax[i] += s * rx;
+			ay[i] += s * ry;
+			az[i] += s * rz;
+		}
 	}
 	t1 = wtime();
 	l1 += (t1 - t0);
