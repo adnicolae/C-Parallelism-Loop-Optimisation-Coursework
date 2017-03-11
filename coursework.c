@@ -11,25 +11,37 @@ void compute() {
 
 	// Loop 0.
 	t0 = wtime();
-	for (int i = 0; i < N; i++) {
-		ax[i] = 0.0f;
+  int i, j;
+  int unroll_n = (N/4) * 4;
+	for (i = 0; i < unroll_n; i+=4) {
+    _mm_store_ps(&ax[i], _mm_set1_ps(0.0f));
 	}
 
-	for (int i = 0; i < N; i++) {
-		ay[i] = 0.0f;
+  for (; i < N; i++) {
+    		ax[i] = 0.0f;
+  }
+
+	for (i = 0; i < unroll_n; i+=4) {
+    _mm_store_ps(&ay[i], _mm_set1_ps(0.0f));
 	}
 
-	for (int i = 0; i < N; i++) {
-		az[i] = 0.0f;
+  for (; i < N; i++) {
+    	ay[i] = 0.0f;
+  }
+
+	for (i = 0; i < unroll_n; i+=4) {
+    _mm_store_ps(&az[i], _mm_set1_ps(0.0f));
 	}
+
+  for (; i < N; i++) {
+    		az[i] = 0.0f;
+  }
 
 	t1 = wtime();
 	l0 += (t1 - t0);
 
     // Loop 1.
 	t0 = wtime();
-	int unroll_n = (N/4) * 4;
-    int i, j;
 
     for (j = 0; j < N; j ++) {
         __m128 xj_v = _mm_set1_ps(x[j]);
