@@ -107,17 +107,50 @@ void compute() {
 
 	// Loop 2.
 	t0 = wtime();
-	for (int i = 0; i < N; i++) {
-		vx[i] += dmp * (dt * ax[i]);
-	}
+  for (i = 0; i < unroll_n; i+=4) {
+    __m128 dt_v = _mm_set1_ps(dt);
+    __m128 dmp_v = _mm_set1_ps(dmp);
+    __m128 ax_v = _mm_load_ps(&ax[i]);
+    __m128 vx_v = _mm_load_ps(&vx[i]);
 
-	for (int i = 0; i < N; i++) {
-		vy[i] += dmp * (dt * ay[i]);
-	}
+    __m128 dt_ax = _mm_mul_ps(dt_v, ax_v);
+    __m128 dmp_dt_ax = _mm_mul_ps(dmp_v, dt_ax);
+    _mm_store_ps(&vx[i], _mm_add_ps(vx_v, dmp_dt_ax));
+  }
 
-	for (int i = 0; i < N; i++) {
-		vz[i] += dmp * (dt * az[i]);
-	}
+  for (; i < N; i++) {
+    vx[i] += dmp * (dt * ax[i]);
+  }
+
+  for (i = 0; i < unroll_n; i+=4) {
+    __m128 dt_v = _mm_set1_ps(dt);
+    __m128 dmp_v = _mm_set1_ps(dmp);
+    __m128 ay_v = _mm_load_ps(&ay[i]);
+    __m128 vy_v = _mm_load_ps(&vy[i]);
+
+    __m128 dt_ay = _mm_mul_ps(dt_v, ay_v);
+    __m128 dmp_dt_ay = _mm_mul_ps(dmp_v, dt_ay);
+    _mm_store_ps(&vy[i], _mm_add_ps(vy_v, dmp_dt_ay));
+  }
+
+  for (; i < N; i++) {
+    vy[i] += dmp * (dt * ay[i]);
+  }
+
+  for (i = 0; i < unroll_n; i+=4) {
+    __m128 dt_v = _mm_set1_ps(dt);
+    __m128 dmp_v = _mm_set1_ps(dmp);
+    __m128 az_v = _mm_load_ps(&az[i]);
+    __m128 vz_v = _mm_load_ps(&vz[i]);
+
+    __m128 dt_az = _mm_mul_ps(dt_v, az_v);
+    __m128 dmp_dt_az = _mm_mul_ps(dmp_v, dt_az);
+    _mm_store_ps(&vz[i], _mm_add_ps(vz_v, dmp_dt_az));
+  }
+
+  for (; i < N; i++) {
+    vz[i] += dmp * (dt * az[i]);
+  }
 	t1 = wtime();
 	l2 += (t1 - t0);
 
