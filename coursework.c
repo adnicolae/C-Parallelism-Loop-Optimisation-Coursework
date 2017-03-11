@@ -5,8 +5,6 @@
  * and should not be optimised out. :)
  */
  #include <immintrin.h>
- #include <stdbool.h>
-
 void compute() {
 
 	double t0, t1;
@@ -148,8 +146,9 @@ void compute() {
 
 	// Loop 3.
 	t0 = wtime();
-  __m128 minus_one = _mm_set1_ps(-1.0f);
   __m128 one = _mm_set1_ps(1.0f);
+  __m128 minus_one = _mm_set1_ps(-1.0f);
+  __m128 two = _mm_set1_ps(2.0f);
   for (i = 0; i < unroll_n; i+=4) {
     __m128 x_v = _mm_load_ps(&x[i]);
     __m128 vx_v = _mm_load_ps(&vx[i]);
@@ -159,21 +158,13 @@ void compute() {
     _mm_store_ps(&x[i], _mm_add_ps(x_v, dt_vx_v));
 
 	  // if (x[i] >= 1.0f || x[i] <= -1.0f) vx[i] *= -1.0f;
-    // if ( ((unsigned) (x[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vx[i] *= -1.0f;
-    __m128 x_minus_minus_one = _mm_sub_ps(x_v, minus_one);
-    __m128 one_minus_minus_one = _mm_sub_ps(one, minus_one);
-    __m128 mask = _mm_cmple_ps(x_minus_minus_one, one_minus_minus_one);
-
-    __m128 multiply = _mm_mul_ps(vx_v, minus_one);
-    __m128 res = _mm_or_ps(_mm_and_ps(mask, multiply), _mm_andnot_ps(mask, x_minus_minus_one));
-    _mm_store_ps(&vx[i], res);
+    _mm_store_ps(&vx[i], _mm_mul_ps(vx_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&x[i]), one), _mm_cmpgt_ps(_mm_load_ps(&x[i]), minus_one)), two), one)));
 
 	}
 
 	for (; i < N; i++) {
 		x[i] += dt * vx[i];
-    // if (x[i] >= 1.0f || x[i] <= -1.0f) vx[i] *= -1.0f;
-        if ( ((unsigned) (x[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vx[i] *= -1.0f;
+    if (x[i] >= 1.0f || x[i] <= -1.0f) vx[i] *= -1.0f;
 	}
 
 	for (i = 0; i < unroll_n; i+=4) {
@@ -185,21 +176,13 @@ void compute() {
     _mm_store_ps(&y[i], _mm_add_ps(y_v, dt_vy_v));
 
 	  // if (y[i] >= 1.0f || y[i] <= -1.0f) vy[i] *= -1.0f;
-        // if ( ((unsigned) (y[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vy[i] *= -1.0f;
-
-        __m128 y_minus_minus_one = _mm_sub_ps(y_v, minus_one);
-        __m128 one_minus_minus_one = _mm_sub_ps(one, minus_one);
-        __m128 mask = _mm_cmple_ps(y_minus_minus_one, one_minus_minus_one);
-
-        __m128 multiply = _mm_mul_ps(vy_v, minus_one);
-        __m128 res = _mm_or_ps(_mm_and_ps(mask, multiply), _mm_andnot_ps(mask, y_minus_minus_one));
-        _mm_store_ps(&vy[i], res);
+    // NOTE:have to load y again because it has been modified by storing smth in it
+    _mm_store_ps(&vy[i], _mm_mul_ps(vy_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&y[i]), one), _mm_cmpgt_ps(_mm_load_ps(&y[i]), minus_one)), two), one)));
 	}
 
 	for (; i < N; i++) {
 		y[i] += dt * vy[i];
-	  // if (y[i] >= 1.0f || y[i] <= -1.0f) vy[i] *= -1.0f;
-            if ( ((unsigned) (y[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vy[i] *= -1.0f;
+	  if (y[i] >= 1.0f || y[i] <= -1.0f) vy[i] *= -1.0f;
 	}
 
 	for (i = 0; i < unroll_n; i+=4) {
@@ -211,21 +194,12 @@ void compute() {
     _mm_store_ps(&z[i], _mm_add_ps(z_v, dt_vz_v));
 
 	  // if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;
-        // if ( ((unsigned) (z[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vz[i] *= -1.0f;
-        __m128 z_minus_minus_one = _mm_sub_ps(z_v, minus_one);
-        __m128 one_minus_minus_one = _mm_sub_ps(one, minus_one);
-        __m128 mask = _mm_cmple_ps(z_minus_minus_one, one_minus_minus_one);
-
-        __m128 multiply = _mm_mul_ps(vz_v, minus_one);
-        __m128 res = _mm_or_ps(_mm_and_ps(mask, multiply), _mm_andnot_ps(mask, z_minus_minus_one));
-        _mm_store_ps(&vz[i], res);
-
+    _mm_store_ps(&vz[i], _mm_mul_ps(vz_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&z[i]), one), _mm_cmpgt_ps(_mm_load_ps(&z[i]), minus_one)), two), one)));
 	}
 
 	for (; i < N; i++) {
 		z[i] += dt * vz[i];
-	  // if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;
-            if ( ((unsigned) (z[i] - (-1.0f)) <= (1.0f - (-1.0f))) == false) vz[i] *= -1.0f;
+	  if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;
 	}
 	t1 = wtime();
 	l3 += (t1 - t0);
