@@ -64,7 +64,7 @@ void compute() {
   __m128 xi_v, yi_v, zi_v, rx_v, ry_v, rz_v, r2_v, r2inv_v, r6inv_v, s_v, xj_v, yj_v, zj_v;
       float X, Y, Z;
 
-      #pragma omp parallel for schedule(static,64) shared(x,y,z,ax,ay,az,m,N,eps) private(i,xi_v,yi_v,zi_v,j,rx_v,ry_v,rz_v,xj_v, yj_v, zj_v,r2_v,r2inv_v,r6inv_v,s_v,X,Y,Z)
+      #pragma omp parallel for schedule(dynamic,N/4) shared(x,y,z,ax,ay,az,m,N,eps) private(i,xi_v,yi_v,zi_v,j,rx_v,ry_v,rz_v,xj_v, yj_v, zj_v,r2_v,r2inv_v,r6inv_v,s_v,X,Y,Z)
       	for (i = 0; i < N; i++) {
       	  xi_v = _mm_load_ps1(&x[i]);
       	  yi_v = _mm_load_ps1(&y[i]);
