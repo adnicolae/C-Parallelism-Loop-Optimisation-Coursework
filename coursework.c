@@ -61,52 +61,48 @@ void compute() {
     // Loop 1.
 	t0 = wtime();
   // __m128 xj_v, zj_v, yj_v, rx_v, xi_v, ry_v, yi_v, zi_v, rz_v, r2_v, r2inv_v, r6inv_v, r6inv_1v, s_v, axi_v, ayi_v, azi_v, srx_v, sry_v, srz_v, mj_v;
-  		// #pragma omp parallel for schedule(dynamic,unroll_n) shared(xj_v, xi_v, yi_v, yj_v, zj_v, zi_v, mj_v, rx_v, ry_v, rz_v, srx_v, sry_v, srz_v, N, unroll_n) lastprivate (axi_v,ayi_v,azi_v,r2_v, r2inv_v, r6inv_v, r6inv_1v, s_v,i,j)
-      // #pragma omp parallel for schedule (dynamic, 64)
-      for (int i = 0; i < N; i+=4) {
-        __m128 xi_v = _mm_load_ps(&x[i]);
-        __m128 yi_v = _mm_load_ps(&y[i]);
-        __m128 zi_v = _mm_load_ps(&z[i]);
+  __m128 xi_v, yi_v, zi_v, rx_v, ry_v, rz_v, r2_v, r2inv_v, r6inv_v, s_v, xj_v, yj_v, zj_v;
+      float X, Y, Z;
 
-        // vector accumulators for ax[i + 0..3] etc.
-        __m128 axi_v = _mm_setzero_ps();
-        __m128 ayi_v = _mm_setzero_ps();
-        __m128 azi_v = _mm_setzero_ps();
+      #pragma omp parallel for schedule(static,64) shared(x,y,z,ax,ay,az,m,N,eps) private(i,xi_v,yi_v,zi_v,j,rx_v,ry_v,rz_v,xj_v, yj_v, zj_v,r2_v,r2inv_v,r6inv_v,s_v,X,Y,Z)
+      	for (i = 0; i < N; i++) {
+      	  xi_v = _mm_load_ps1(&x[i]);
+      	  yi_v = _mm_load_ps1(&y[i]);
+      	  zi_v = _mm_load_ps1(&z[i]);
+      	  for (j = 0; j < unroll_n; j+=4) {
+            xj_v =  _mm_load_ps(&x[j]);
+            yj_v =  _mm_load_ps(&y[j]);
+            zj_v =  _mm_load_ps(&z[j]);
 
+      	    rx_v = _mm_sub_ps(xj_v, xi_v);
+      	    ry_v = _mm_sub_ps(yj_v, yi_v);
+      	    rz_v = _mm_sub_ps(zj_v, zi_v);
 
-        for (int j = 0; j < N; j++) {
-          __m128 xj_v = _mm_set1_ps(x[j]);
-          __m128 rx_v = _mm_sub_ps(xj_v, xi_v);
+      	    r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;
 
-          __m128 yj_v = _mm_set1_ps(y[j]);
-          __m128 ry_v = _mm_sub_ps(yj_v, yi_v);
+            r2inv_v = _mm_rsqrt_ps(r2_v);
 
-          __m128 zj_v = _mm_set1_ps(z[j]);
-          __m128 rz_v = _mm_sub_ps(zj_v, zi_v);
+            r6inv_v = _mm_mul_ps(_mm_mul_ps(r2inv_v,r2inv_v),r2inv_v);
 
-          __m128 mj_v = _mm_set1_ps(m[j]);
+            s_v = _mm_mul_ps(_mm_load_ps(&m[j]),r6inv_v);
 
-  			// __m128 r2_v = _mm_mul_ps(rx_v, rx_v) + _mm_mul_ps(ry_v, ry_v) + _mm_mul_ps(rz_v, rz_v) + _mm_set1_ps(eps);
-  			__m128 r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;   // GNU extension
-  			__m128 r2inv_v = _mm_rsqrt_ps(r2_v);
-              // _mm_div_ps(_mm_set1_ps(1.0f),_mm_sqrt_ps(r2_v));
-  			__m128 r6inv_1v = _mm_mul_ps(r2inv_v, r2inv_v);
-  			__m128 r6inv_v = _mm_mul_ps(r6inv_1v, r2inv_v);
-
-  			__m128 s_v = _mm_mul_ps(mj_v, r6inv_v);
-
-          __m128 srx_v = _mm_mul_ps(s_v, rx_v);
-          __m128 sry_v = _mm_mul_ps(s_v, ry_v);
-          __m128 srz_v = _mm_mul_ps(s_v, rz_v);
-
-          axi_v = _mm_add_ps(axi_v, srx_v);
-          ayi_v = _mm_add_ps(ayi_v, sry_v);
-          azi_v = _mm_add_ps(azi_v, srz_v);
-        }
-        _mm_store_ps(&ax[i], axi_v);
-        _mm_store_ps(&ay[i], ayi_v);
-        _mm_store_ps(&az[i], azi_v);
-      }
+            horizontal_add_float(_mm_mul_ps(s_v,rx_v),&X); ax[i] += X;
+      			horizontal_add_float(_mm_mul_ps(s_v,ry_v),&Y); ay[i] += Y;
+      			horizontal_add_float(_mm_mul_ps(s_v,rz_v),&Z); az[i] += Z;
+      	  }
+      	  for (;j < N; j++) {
+      	    float rx = x[j] - x[i];
+      	    float ry = y[j] - y[i];
+      	    float rz = z[j] - z[i];
+      	    float r2 = rx*rx + ry*ry + rz*rz + eps;
+      	    float r2inv = 1.0f / sqrt(r2);
+      	    float r6inv = r2inv * r2inv * r2inv;
+      	    float s = m[j] * r6inv;
+      	    ax[i] += s * rx;
+      	    ay[i] += s * ry;
+      	    az[i] += s * rz;
+      	  }
+      	}
 	t1 = wtime();
 	l1 += (t1 - t0);
 
