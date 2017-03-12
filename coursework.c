@@ -58,51 +58,41 @@ void compute() {
 	t1 = wtime();
 	l0 += (t1 - t0);
 
-    // Loop 1.
-	t0 = wtime();
-  // __m128 xj_v, zj_v, yj_v, rx_v, xi_v, ry_v, yi_v, zi_v, rz_v, r2_v, r2inv_v, r6inv_v, r6inv_1v, s_v, axi_v, ayi_v, azi_v, srx_v, sry_v, srz_v, mj_v;
-  __m128 xi_v, yi_v, zi_v, rx_v, ry_v, rz_v, r2_v, r2inv_v, r6inv_v, s_v, xj_v, yj_v, zj_v;
-      float X, Y, Z;
-
-      #pragma omp parallel for schedule(dynamic,N/4) shared(x,y,z,ax,ay,az,m,N,eps) private(i,xi_v,yi_v,zi_v,j,rx_v,ry_v,rz_v,xj_v, yj_v, zj_v,r2_v,r2inv_v,r6inv_v,s_v,X,Y,Z)
-      	for (i = 0; i < N; i++) {
-      	  xi_v = _mm_load_ps1(&x[i]);
-      	  yi_v = _mm_load_ps1(&y[i]);
-      	  zi_v = _mm_load_ps1(&z[i]);
-      	  for (j = 0; j < unroll_n; j+=4) {
-            xj_v =  _mm_load_ps(&x[j]);
-            yj_v =  _mm_load_ps(&y[j]);
-            zj_v =  _mm_load_ps(&z[j]);
-
-      	    rx_v = _mm_sub_ps(xj_v, xi_v);
-      	    ry_v = _mm_sub_ps(yj_v, yi_v);
-      	    rz_v = _mm_sub_ps(zj_v, zi_v);
-
-      	    r2_v = _mm_set1_ps(eps) + rx_v*rx_v + ry_v*ry_v + rz_v*rz_v;
-
-            r2inv_v = _mm_rsqrt_ps(r2_v);
-
-            r6inv_v = _mm_mul_ps(_mm_mul_ps(r2inv_v,r2inv_v),r2inv_v);
-
-            s_v = _mm_mul_ps(_mm_load_ps(&m[j]),r6inv_v);
-
-            horizontal_add_float(_mm_mul_ps(s_v,rx_v),&X); ax[i] += X;
-      			horizontal_add_float(_mm_mul_ps(s_v,ry_v),&Y); ay[i] += Y;
-      			horizontal_add_float(_mm_mul_ps(s_v,rz_v),&Z); az[i] += Z;
-      	  }
-      	  for (;j < N; j++) {
-      	    float rx = x[j] - x[i];
-      	    float ry = y[j] - y[i];
-      	    float rz = z[j] - z[i];
-      	    float r2 = rx*rx + ry*ry + rz*rz + eps;
-      	    float r2inv = 1.0f / sqrt(r2);
-      	    float r6inv = r2inv * r2inv * r2inv;
-      	    float s = m[j] * r6inv;
-      	    ax[i] += s * rx;
-      	    ay[i] += s * ry;
-      	    az[i] += s * rz;
-      	  }
-      	}
+  // Loop 1.
+t0 = wtime();
+__m128 xi,yi,zi,rx,ry,rz,r2,r2inv,r6inv,s;
+#pragma omp parallel for schedule(dynamic,64) shared(x,y,z,ax,ay,az,unroll_n,eps) private(i) firstprivate(xi,yi,zi,rx,ry,rz,r2,r2inv,r6inv,s)
+for (i = 0; i < unroll_n; i+=4) {
+xi = _mm_load_ps(&x[i]);
+yi = _mm_load_ps(&y[i]);
+zi = _mm_load_ps(&z[i]);
+for (j = 0; j < N; j++) {
+  rx = _mm_sub_ps(_mm_load_ps1(&x[j]),xi);
+  ry = _mm_sub_ps(_mm_load_ps1(&y[j]),yi);
+  rz = _mm_sub_ps(_mm_load_ps1(&z[j]),zi);
+  r2 = _mm_set1_ps(eps) + rx*rx + ry*ry + rz*rz;
+  r2inv = _mm_rsqrt_ps(r2);
+  r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
+  s = _mm_mul_ps(_mm_load_ps1(&m[j]),r6inv);
+  _mm_store_ps(&ax[i],_mm_add_ps(_mm_load_ps(&ax[i]),_mm_mul_ps(s,rx)));
+  _mm_store_ps(&ay[i],_mm_add_ps(_mm_load_ps(&ay[i]),_mm_mul_ps(s,ry)));
+  _mm_store_ps(&az[i],_mm_add_ps(_mm_load_ps(&az[i]),_mm_mul_ps(s,rz)));
+}
+}
+for (; i < N; i++) {
+for (j = 0; j < N; j++) {
+  float rx = x[j] - x[i];
+  float ry = y[j] - y[i];
+  float rz = z[j] - z[i];
+  float r2 = rx*rx + ry*ry + rz*rz + eps;
+  float r2inv = 1.0f / sqrt(r2);
+  float r6inv = r2inv * r2inv * r2inv;
+  float s = m[j] * r6inv;
+  ax[i] += s * rx;
+  ay[i] += s * ry;
+  az[i] += s * rz;
+}
+}
 	t1 = wtime();
 	l1 += (t1 - t0);
 
