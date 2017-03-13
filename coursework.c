@@ -6,22 +6,6 @@
  */
  #include <immintrin.h>
   #include <omp.h>
-  __m128 rsqrt_float4_single(__m128 x) {
-   __m128 three = _mm_set1_ps(3.0f), half = _mm_set1_ps(0.5f);
-   __m128 res = _mm_rsqrt_ps(x);
-   __m128 muls = _mm_mul_ps(_mm_mul_ps(x, res), res);
-   return res = _mm_mul_ps(_mm_mul_ps(half, res), _mm_sub_ps(three, muls));
-  }
-
-  __m128 invsqrt_compiler(__m128 x) {
-   // surprisingly, gcc/clang just use rcpps + newton, not rsqrt + newton.
-   // gcc fails to use FMA for the Newton-Raphson iteration, though: clang is better
-   return _mm_set1_ps(1.0f) / _mm_sqrt_ps(x);
-  }
-
-  __m128 inv_compiler(__m128 x) {
-   return _mm_set1_ps(1.0f) / x;
-  }
   float hsum_ps_sse(__m128 v) {
     __m128 shuf = _mm_movehdup_ps(v);
     __m128 sums = _mm_add_ps(v, shuf);
@@ -41,65 +25,42 @@
 void compute() {
 
 	double t0, t1;
+  int i=N, j;
+  int unroll_n = (N/4) * 4;
   omp_set_num_threads(4);
 
-	// Loop 0.
-	t0 = wtime();
-  int i, j;
-  int unroll_n = (N/4) * 4;
-	for (i = 0; i < unroll_n; i+=4) {
-    _mm_store_ps(&ax[i], _mm_set1_ps(0.0f));
-	}
+	// Loop 0
 
-  for (; i < N; i++) {
-    		ax[i] = 0.0f;
-  }
-
-	for (i = 0; i < unroll_n; i+=4) {
-    _mm_store_ps(&ay[i], _mm_set1_ps(0.0f));
-	}
-
-  for (; i < N; i++) {
-    	ay[i] = 0.0f;
-  }
-
-	for (i = 0; i < unroll_n; i+=4) {
-    _mm_store_ps(&az[i], _mm_set1_ps(0.0f));
-	}
-
-  for (; i < N; i++) {
-    		az[i] = 0.0f;
-  }
-
-	t1 = wtime();
-	l0 += (t1 - t0);
+	l0 = 0;
 
   // Loop 1.
 t0 = wtime();
 int N_unroll = (N / 4) * 4;
 __m128 _mm_eps = _mm_load1_ps(&eps);
-#pragma omp parallel for num_threads(4)
+__m128 rx, ry, rz, r2, r2inv, r6inv, s, step_xi, step_yi, step_zi;
+#pragma omp parallel for num_threads(4) schedule(dynamic, N/4) default(shared) private(i, rx, rz, r2, r2inv, r6inv, s)
+
 for (int i = 0; i < N; i++) {
-  int j;
 
-  __m128 step_xi = _mm_set1_ps(x[i]);
-  __m128 step_yi = _mm_set1_ps(y[i]);
-  __m128 step_zi = _mm_set1_ps(z[i]);
 
-  __m128 step_axi = _mm_set1_ps(0);
-  __m128 step_ayi = _mm_set1_ps(0);
-  __m128 step_azi = _mm_set1_ps(0);
+   step_xi = _mm_set1_ps(x[i]);
+   step_yi = _mm_set1_ps(y[i]);
+   step_zi = _mm_set1_ps(z[i]);
+
+  __m128 step_axi = _mm_setzero_ps();
+  __m128 step_ayi = _mm_setzero_ps();
+  __m128 step_azi = _mm_setzero_ps();
 
   for (j = 0; j < N_unroll; j+=4) {
-      __m128 rx = _mm_sub_ps(_mm_load_ps(x+j),step_xi);
-      __m128 ry = _mm_sub_ps(_mm_load_ps(y+j),step_yi);
-      __m128 rz = _mm_sub_ps(_mm_load_ps(z+j),step_zi);
+       rx = _mm_sub_ps(_mm_load_ps(x+j),step_xi);
+       ry = _mm_sub_ps(_mm_load_ps(y+j),step_yi);
+       rz = _mm_sub_ps(_mm_load_ps(z+j),step_zi);
 
-      __m128 r2 = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx,rx),_mm_mul_ps(ry,ry)),_mm_add_ps(_mm_mul_ps(rz,rz),_mm_eps));
-      __m128 r2inv = _mm_rsqrt_ps(r2);
-      __m128 r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
+       r2 = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx,rx),_mm_mul_ps(ry,ry)),_mm_add_ps(_mm_mul_ps(rz,rz),_mm_eps));
+       r2inv = _mm_rsqrt_ps(r2);
+       r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
 
-      __m128 s = _mm_mul_ps(_mm_load_ps(m+j),r6inv);
+       s = _mm_mul_ps(_mm_load_ps(m+j),r6inv);
 
       step_axi = _mm_add_ps(step_axi,_mm_mul_ps(s,rx));
       step_ayi = _mm_add_ps(step_ayi,_mm_mul_ps(s,ry));
@@ -107,19 +68,17 @@ for (int i = 0; i < N; i++) {
   }
 
   for (; j < N; j++) {
-      __m128 rx = _mm_sub_ss(_mm_load_ss(x+j),step_xi);
-      __m128 ry = _mm_sub_ss(_mm_load_ss(y+j),step_yi);
-      __m128 rz = _mm_sub_ss(_mm_load_ss(z+j),step_zi);
+  float  rx = x[j] - x[i];
+  float  ry = y[j] - y[i];
+  float  rz = z[j] - z[i];
+  float  r2 = rx*rx + ry*ry + rz*rz + eps;
+  float  r2inv = 1.0f / sqrt(r2);
+  float  r6inv = r2inv * r2inv * r2inv;
+  float  s = m[j] * r6inv;
 
-      __m128 r2 = _mm_add_ss(_mm_add_ss(_mm_mul_ss(rx,rx),_mm_mul_ss(ry,ry)),_mm_add_ss(_mm_mul_ss(rz,rz),_mm_eps));
-
-      __m128 r2inv = _mm_rsqrt_ss(r2);
-      __m128 r6inv = _mm_mul_ss(_mm_mul_ss(r2inv,r2inv),r2inv);
-      __m128 s = _mm_mul_ss(_mm_load_ss(m+j),r6inv);
-
-      step_axi = _mm_add_ps(step_axi,_mm_mul_ss(s,rx));
-      step_ayi = _mm_add_ps(step_ayi,_mm_mul_ss(s,ry));
-      step_azi = _mm_add_ps(step_azi,_mm_mul_ss(s,rz));
+    ax[i] += s * rx; // accumulators use reduction reduction (+:ax, +:ay, +:az)
+    ay[i] += s * ry; // accumulators
+    az[i] += s * rz; // accumulators
   }
 
   _mm_store_ss(ax+i, _mm_hadd_ps(_mm_hadd_ps(step_axi,step_axi),_mm_hadd_ps(step_axi,step_axi)));
