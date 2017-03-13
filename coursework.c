@@ -60,39 +60,33 @@ void compute() {
 
   // Loop 1.
 t0 = wtime();
-__m128 xi,yi,zi,rx,ry,rz,r2,r2inv,r6inv,s;
-#pragma omp parallel for schedule(dynamic,64) shared(x,y,z,ax,ay,az,unroll_n,eps) private(i) firstprivate(xi,yi,zi,rx,ry,rz,r2,r2inv,r6inv,s)
-for (i = 0; i < unroll_n; i+=4) {
-xi = _mm_load_ps(&x[i]);
-yi = _mm_load_ps(&y[i]);
-zi = _mm_load_ps(&z[i]);
-for (j = 0; j < N; j++) {
-  rx = _mm_sub_ps(_mm_load_ps1(&x[j]),xi);
-  ry = _mm_sub_ps(_mm_load_ps1(&y[j]),yi);
-  rz = _mm_sub_ps(_mm_load_ps1(&z[j]),zi);
-  r2 = _mm_set1_ps(eps) + rx*rx + ry*ry + rz*rz;
-  r2inv = _mm_rsqrt_ps(r2);
-  r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
-  s = _mm_mul_ps(_mm_load_ps1(&m[j]),r6inv);
-  _mm_store_ps(&ax[i],_mm_add_ps(_mm_load_ps(&ax[i]),_mm_mul_ps(s,rx)));
-  _mm_store_ps(&ay[i],_mm_add_ps(_mm_load_ps(&ay[i]),_mm_mul_ps(s,ry)));
-  _mm_store_ps(&az[i],_mm_add_ps(_mm_load_ps(&az[i]),_mm_mul_ps(s,rz)));
-}
-}
-for (; i < N; i++) {
-for (j = 0; j < N; j++) {
-  float rx = x[j] - x[i];
-  float ry = y[j] - y[i];
-  float rz = z[j] - z[i];
-  float r2 = rx*rx + ry*ry + rz*rz + eps;
-  float r2inv = 1.0f / sqrt(r2);
-  float r6inv = r2inv * r2inv * r2inv;
-  float s = m[j] * r6inv;
-  ax[i] += s * rx;
-  ay[i] += s * ry;
-  az[i] += s * rz;
-}
-}
+  __m128 xi,yi,zi,rx,ry,rz,r2,r2inv,r6inv,s,ax_v,az_v,ay_v;
+  __m128 eps_v = _mm_load1_ps(&eps);
+  #pragma omp parallel for schedule(dynamic,64) shared(x,y,z,ax,ay,az,unroll_n,eps) private(i) firstprivate(xi,yi,zi,rx,ry,ax_v,ay_v,az_v,rz,r2,r2inv,r6inv,s)
+  for (i = 0; i < unroll_n; i+=4) {
+  xi = _mm_load_ps(&x[i]);  ax_v = _mm_setzero_ps();
+  yi = _mm_load_ps(&y[i]);  ay_v = _mm_setzero_ps();
+  zi = _mm_load_ps(&z[i]);  az_v = _mm_setzero_ps();
+  for (j = 0; j < N; j++) {
+    rx = _mm_sub_ps(_mm_load_ps1(&x[j]),xi);
+    ry = _mm_sub_ps(_mm_load_ps1(&y[j]),yi);
+    rz = _mm_sub_ps(_mm_load_ps1(&z[j]),zi);
+    r2 = eps_v + rx*rx + ry*ry + rz*rz;
+    // r2 = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx, rx), _mm_mul_ps(ry,ry)), _mm_add_ps(_mm_mul_ps(rz,rz),eps_v));
+    r2inv = _mm_rsqrt_ps(r2);
+    r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
+    s = _mm_mul_ps(_mm_load_ps1(&m[j]),r6inv);
+
+    ax_v = _mm_add_ps(ax_v,_mm_mul_ps(s,rx));
+    ay_v = _mm_add_ps(ay_v,_mm_mul_ps(s,ry));
+    az_v = _mm_add_ps(az_v,_mm_mul_ps(s,rz));
+
+  }
+  _mm_store_ps(&ax[i],ax_v);
+  _mm_store_ps(&ay[i],ay_v);
+  _mm_store_ps(&az[i],az_v);
+
+  }
 	t1 = wtime();
 	l1 += (t1 - t0);
 
