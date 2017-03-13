@@ -4,24 +4,9 @@
  * l0, l1, l2 and l3 record the amount of time spent in each loop
  * and should not be optimised out. :)
  */
- #include <immintrin.h>
-  #include <omp.h>
-  float hsum_ps_sse(__m128 v) {
-    __m128 shuf = _mm_movehdup_ps(v);
-    __m128 sums = _mm_add_ps(v, shuf);
-    shuf = _mm_movehl_ps(shuf, sums);
-    sums = _mm_add_ss(sums, shuf);
-    return _mm_cvtss_f32(sums);
-  }
+#include <immintrin.h>
+#include <omp.h>
 
-  inline void horizontal_add_float(__m128 vec, float* dest)
-{
-  //Invert first 2 bits of vec
-  __m128 temp = _mm_movehl_ps(vec, vec);
-  temp = _mm_add_ps(vec, temp);
-  temp = _mm_add_ss(temp, _mm_shuffle_ps(temp, temp, _MM_SHUFFLE(0,0,0,1)));
-  _mm_store_ss(dest, temp);
-}
 void compute() {
 
 	double t0, t1;
@@ -41,8 +26,6 @@ __m128 rx, ry, rz, r2, r2inv, r6inv, s, step_xi, step_yi, step_zi;
 #pragma omp parallel for num_threads(4) schedule(dynamic, N/4) default(shared) private(i, rx, rz, r2, r2inv, r6inv, s)
 
 for (int i = 0; i < N; i++) {
-
-
    step_xi = _mm_set1_ps(x[i]);
    step_yi = _mm_set1_ps(y[i]);
    step_zi = _mm_set1_ps(z[i]);
@@ -52,9 +35,9 @@ for (int i = 0; i < N; i++) {
   __m128 step_azi = _mm_setzero_ps();
 
   for (j = 0; j < N_unroll; j+=4) {
-       rx = _mm_sub_ps(_mm_load_ps(x+j),step_xi);
-       ry = _mm_sub_ps(_mm_load_ps(y+j),step_yi);
-       rz = _mm_sub_ps(_mm_load_ps(z+j),step_zi);
+       rx = _mm_sub_ps(_mm_load_ps(&x[j]),step_xi);
+       ry = _mm_sub_ps(_mm_load_ps(&y[j]),step_yi);
+       rz = _mm_sub_ps(_mm_load_ps(&z[j]),step_zi);
 
        r2 = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx,rx),_mm_mul_ps(ry,ry)),_mm_add_ps(_mm_mul_ps(rz,rz),_mm_eps));
        r2inv = _mm_rsqrt_ps(r2);
@@ -81,9 +64,9 @@ for (int i = 0; i < N; i++) {
     az[i] += s * rz; // accumulators
   }
 
-  _mm_store_ss(ax+i, _mm_hadd_ps(_mm_hadd_ps(step_axi,step_axi),_mm_hadd_ps(step_axi,step_axi)));
-  _mm_store_ss(ay+i, _mm_hadd_ps(_mm_hadd_ps(step_ayi,step_ayi),_mm_hadd_ps(step_ayi,step_ayi)));
-  _mm_store_ss(az+i, _mm_hadd_ps(_mm_hadd_ps(step_azi,step_azi),_mm_hadd_ps(step_azi,step_azi)));
+  _mm_store_ss(&ax[i], _mm_hadd_ps(_mm_hadd_ps(step_axi,step_axi),_mm_hadd_ps(step_axi,step_axi)));
+  _mm_store_ss(&ay[i], _mm_hadd_ps(_mm_hadd_ps(step_ayi,step_ayi),_mm_hadd_ps(step_ayi,step_ayi)));
+  _mm_store_ss(&az[i], _mm_hadd_ps(_mm_hadd_ps(step_azi,step_azi),_mm_hadd_ps(step_azi,step_azi)));
 }
 	t1 = wtime();
 	l1 += (t1 - t0);
@@ -130,16 +113,19 @@ for (int i = 0; i < N; i++) {
   __m128 one = _mm_set1_ps(1.0f);
   __m128 minus_one = _mm_set1_ps(-1.0f);
   __m128 two = _mm_set1_ps(2.0f);
+  __m128 xi_v, yi_v, zi_v, vxi_v, vyi_v, vzi_v, dt_v, dt_vx_v, dt_vy_v, dt_vz_v;
   for (i = 0; i < unroll_n; i+=4) {
-    __m128 x_v = _mm_load_ps(&x[i]);
-    __m128 vx_v = _mm_load_ps(&vx[i]);
-    __m128 dt_v = _mm_set1_ps(dt);
-    __m128 dt_vx_v = _mm_mul_ps(dt_v, vx_v);
+    xi_v = _mm_load_ps(&x[i]);
+    vxi_v = _mm_load_ps(&vx[i]);
+    dt_v = _mm_set1_ps(dt);
+    dt_vx_v = _mm_mul_ps(dt_v, vxi_v);
 
-    _mm_store_ps(&x[i], _mm_add_ps(x_v, dt_vx_v));
+    _mm_store_ps(&x[i], _mm_add_ps(xi_v, dt_vx_v));
+
+    xi_v = _mm_load_ps(&x[i]);
 
 	  // if (x[i] >= 1.0f || x[i] <= -1.0f) vx[i] *= -1.0f;
-    _mm_store_ps(&vx[i], _mm_mul_ps(vx_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&x[i]), one), _mm_cmpgt_ps(_mm_load_ps(&x[i]), minus_one)), two), one)));
+    _mm_store_ps(&vx[i], _mm_mul_ps(vxi_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(xi_v, one), _mm_cmpgt_ps(xi_v, minus_one)), two), one)));
 
 	}
 
@@ -149,16 +135,19 @@ for (int i = 0; i < N; i++) {
 	}
 
 	for (i = 0; i < unroll_n; i+=4) {
-    __m128 y_v = _mm_load_ps(&y[i]);
-    __m128 vy_v = _mm_load_ps(&vy[i]);
-    __m128 dt_v = _mm_set1_ps(dt);
-    __m128 dt_vy_v = _mm_mul_ps(dt_v, vy_v);
+    yi_v = _mm_load_ps(&y[i]);
+    vyi_v = _mm_load_ps(&vy[i]);
+    dt_v = _mm_set1_ps(dt);
+    dt_vy_v = _mm_mul_ps(dt_v, vyi_v);
 
-    _mm_store_ps(&y[i], _mm_add_ps(y_v, dt_vy_v));
+    _mm_store_ps(&y[i], _mm_add_ps(yi_v, dt_vy_v));
 
 	  // if (y[i] >= 1.0f || y[i] <= -1.0f) vy[i] *= -1.0f;
     // have to load y again because it h
-    _mm_store_ps(&vy[i], _mm_mul_ps(vy_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&y[i]), one), _mm_cmpgt_ps(_mm_load_ps(&y[i]), minus_one)), two), one)));
+
+    yi_v = _mm_load_ps(&y[i]);
+
+    _mm_store_ps(&vy[i], _mm_mul_ps(vyi_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(yi_v, one), _mm_cmpgt_ps(yi_v, minus_one)), two), one)));
 	}
 
 	for (; i < N; i++) {
@@ -167,15 +156,22 @@ for (int i = 0; i < N; i++) {
 	}
 
 	for (i = 0; i < unroll_n; i+=4) {
-    __m128 z_v = _mm_load_ps(&z[i]);
-    __m128 vz_v = _mm_load_ps(&vz[i]);
-    __m128 dt_v = _mm_set1_ps(dt);
-    __m128 dt_vz_v = _mm_mul_ps(dt_v, vz_v);
+    zi_v = _mm_load_ps(&z[i]);
+    vzi_v = _mm_load_ps(&vz[i]);
+    dt_v = _mm_set1_ps(dt);
+    dt_vz_v = _mm_mul_ps(dt_v, vzi_v);
 
-    _mm_store_ps(&z[i], _mm_add_ps(z_v, dt_vz_v));
+    _mm_store_ps(&z[i], _mm_add_ps(zi_v, dt_vz_v));
+
+    //reload z[i] or smth
 
 	  // if (z[i] >= 1.0f || z[i] <= -1.0f) vz[i] *= -1.0f;
-    _mm_store_ps(&vz[i], _mm_mul_ps(vz_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(_mm_load_ps(&z[i]), one), _mm_cmpgt_ps(_mm_load_ps(&z[i]), minus_one)), two), one)));
+    zi_v = _mm_load_ps(&z[i]);
+
+    // if they're both false it means the if statement is true
+    // so -1 is multiplied.
+    // if the statement is false, 0 is multiplied and the code remains unchanged
+    _mm_store_ps(&vz[i], _mm_mul_ps(vzi_v, _mm_sub_ps(_mm_min_ps(_mm_and_ps(_mm_cmplt_ps(zi_v, one), _mm_cmpgt_ps(zi_v, minus_one)), two), one)));
 	}
 
 	for (; i < N; i++) {
