@@ -6,7 +6,19 @@
  */
 #include <immintrin.h>
 #include <omp.h>
-
+__m128 rsqrt_float4_single(__m128 x) {
+ __m128 three = _mm_set1_ps(3.0f), half = _mm_set1_ps(0.5f);
+ __m128 res = _mm_rsqrt_ps(x);
+ __m128 muls = _mm_mul_ps(_mm_mul_ps(x, res), res);
+ return res = _mm_mul_ps(_mm_mul_ps(half, res), _mm_sub_ps(three, muls));
+}
+float hsum_ps_sse3(__m128 v) {
+    __m128 shuf = _mm_movehdup_ps(v);        // broadcast elements 3,1 to 2,0
+    __m128 sums = _mm_add_ps(v, shuf);
+    shuf        = _mm_movehl_ps(shuf, sums); // high half -> low half
+    sums        = _mm_add_ss(sums, shuf);
+    return        _mm_cvtss_f32(sums);
+}
 void compute() {
 
 	double t0, t1;
@@ -64,9 +76,9 @@ for (int i = 0; i < N; i++) {
     az[i] += s * rz; // accumulators
   }
 
-  _mm_store_ss(&ax[i], _mm_hadd_ps(_mm_hadd_ps(step_axi,step_axi),_mm_hadd_ps(step_axi,step_axi)));
-  _mm_store_ss(&ay[i], _mm_hadd_ps(_mm_hadd_ps(step_ayi,step_ayi),_mm_hadd_ps(step_ayi,step_ayi)));
-  _mm_store_ss(&az[i], _mm_hadd_ps(_mm_hadd_ps(step_azi,step_azi),_mm_hadd_ps(step_azi,step_azi)));
+    _mm_store_ss(&ax[i], _mm_set1_ps(hsum_ps_sse3(step_axi)));
+    _mm_store_ss(&ay[i], _mm_set1_ps(hsum_ps_sse3(step_ayi)));
+    _mm_store_ss(&az[i], _mm_set1_ps(hsum_ps_sse3(step_azi)));
 }
 	t1 = wtime();
 	l1 += (t1 - t0);
