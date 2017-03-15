@@ -6,6 +6,22 @@
  */
 #include <immintrin.h>
 #include <omp.h>
+// __m128 rsqrt_NR(__m128 v) {
+// 	__m128 three = _mm_set1_ps(3.0f), half = _mm_set1_ps(0.5f);
+// 	__m128 result = _mm_rsqrt_ps(x);
+// 	__m128 multiply = _mm_mul_ps(_mm_mul_ps(x, res), res);
+// 	return res = _mm_mul_ps(_mm_mul_ps(half, res), _mm_sub_ps(three, muls));
+// }
+//
+// __m128 hsum(__m128 v) {
+// 	__m128 shuf = _mm_movehdup_ps(v);
+// 	__m128 sums = _mm_add_ps(v, shuf);
+//     shuf        = _mm_movehl_ps(shuf, sums);
+//     return sums        = _mm_add_ss(sums, shuf);
+// }
+
+#include <immintrin.h>
+#include <omp.h>
 __m128 rsqrt_float4_single(__m128 x) {
  __m128 three = _mm_set1_ps(3.0f), half = _mm_set1_ps(0.5f);
  __m128 res = _mm_rsqrt_ps(x);
@@ -31,30 +47,30 @@ void compute() {
 	// Loop 1.
 	t0 = wtime();
 	__m128 _mm_eps = _mm_load1_ps(&eps);
-	__m128 rx, ry, rz, r2, r2inv, r6inv, s, step_xi, step_yi, step_zi;
-	#pragma omp parallel for num_threads(4) schedule(dynamic, 64) default(shared) private(i, rx, rz, r2, r2inv, r6inv, s)
-	for (int i = 0; i < N; i++) {
-		step_xi = _mm_set1_ps(x[i]);
-		step_yi = _mm_set1_ps(y[i]);
-		step_zi = _mm_set1_ps(z[i]);
+	__m128 rx_v, ry_v, rz_v, r2_v, r2inv_v, r6inv_v, s_v, xi_v, yi_v, zi_v;
+	#pragma omp parallel for num_threads(4) schedule(dynamic, 64) default(shared) private(i, rx_v, rz_v, r2_v, r2inv_v, r6inv_v, s_v)
+	for (i = 0; i < N; i++) {
+		xi_v = _mm_set1_ps(x[i]);
+		yi_v = _mm_set1_ps(y[i]);
+		zi_v = _mm_set1_ps(z[i]);
 
-		__m128 step_axi = _mm_setzero_ps();
-		__m128 step_ayi = _mm_setzero_ps();
-		__m128 step_azi = _mm_setzero_ps();
+		__m128 axi_v = _mm_setzero_ps();
+		__m128 ayi_v = _mm_setzero_ps();
+		__m128 azi_v = _mm_setzero_ps();
 		for (j = 0; j < unroll_n; j+=4) {
-			rx = _mm_sub_ps(_mm_load_ps(&x[j]),step_xi);
-			ry = _mm_sub_ps(_mm_load_ps(&y[j]),step_yi);
-			rz = _mm_sub_ps(_mm_load_ps(&z[j]),step_zi);
+			rx_v = _mm_sub_ps(_mm_load_ps(&x[j]),xi_v);
+			ry_v = _mm_sub_ps(_mm_load_ps(&y[j]),yi_v);
+			rz_v = _mm_sub_ps(_mm_load_ps(&z[j]),zi_v);
 
-			r2 = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx,rx),_mm_mul_ps(ry,ry)),_mm_add_ps(_mm_mul_ps(rz,rz),_mm_eps));
-			r2inv = _mm_rsqrt_ps(r2);
-			r6inv = _mm_mul_ps(_mm_mul_ps(r2inv,r2inv),r2inv);
+			r2_v = _mm_add_ps(_mm_add_ps(_mm_mul_ps(rx_v,rx_v),_mm_mul_ps(ry_v,ry_v)),_mm_add_ps(_mm_mul_ps(rz_v,rz_v),_mm_eps));
+			r2inv_v = _mm_rsqrt_ps(r2_v);
+			r6inv_v = _mm_mul_ps(_mm_mul_ps(r2inv_v,r2inv_v),r2inv_v);
 
-			s = _mm_mul_ps(_mm_load_ps(m+j),r6inv);
+			s_v = _mm_mul_ps(_mm_load_ps(m+j),r6inv_v);
 
-			step_axi = _mm_add_ps(step_axi,_mm_mul_ps(s,rx));
-			step_ayi = _mm_add_ps(step_ayi,_mm_mul_ps(s,ry));
-			step_azi = _mm_add_ps(step_azi,_mm_mul_ps(s,rz));
+			axi_v = _mm_add_ps(axi_v,_mm_mul_ps(s_v,rx_v));
+			ayi_v = _mm_add_ps(ayi_v,_mm_mul_ps(s_v,ry_v));
+			azi_v = _mm_add_ps(azi_v,_mm_mul_ps(s_v,rz_v));
 		}
 
 		for (; j < N; j++) {
@@ -70,9 +86,9 @@ void compute() {
 			az[i] += s * rz;
 	  }
 
-	  _mm_store_ss(&ax[i], _mm_hadd_ps(_mm_hadd_ps(step_axi,step_axi),_mm_hadd_ps(step_axi,step_axi)));
-	  _mm_store_ss(&ay[i], _mm_hadd_ps(_mm_hadd_ps(step_ayi,step_ayi),_mm_hadd_ps(step_ayi,step_ayi)));
-	  _mm_store_ss(&az[i], _mm_hadd_ps(_mm_hadd_ps(step_azi,step_azi),_mm_hadd_ps(step_azi,step_azi)));
+	  _mm_store_ss(&ax[i], _mm_hadd_ps(_mm_hadd_ps(axi_v,axi_v),_mm_hadd_ps(axi_v,axi_v)));
+	  _mm_store_ss(&ay[i], _mm_hadd_ps(_mm_hadd_ps(ayi_v,ayi_v),_mm_hadd_ps(ayi_v,ayi_v)));
+	  _mm_store_ss(&az[i], _mm_hadd_ps(_mm_hadd_ps(azi_v,azi_v),_mm_hadd_ps(azi_v,azi_v)));
 	}
 
 	t1 = wtime();
@@ -121,7 +137,7 @@ void compute() {
 	__m128 one = _mm_set1_ps(1.0f);
 	__m128 minus_one = _mm_set1_ps(-1.0f);
 	__m128 two = _mm_set1_ps(2.0f);
-	__m128 xi_v, yi_v, zi_v, vxi_v, vyi_v, vzi_v, dt_vx_v, dt_vy_v, dt_vz_v;
+	__m128 vxi_v, vyi_v, vzi_v, dt_vx_v, dt_vy_v, dt_vz_v;
 	for (i = 0; i < unroll_n; i+=4) {
 		xi_v = _mm_load_ps(&x[i]);
 		vxi_v = _mm_load_ps(&vx[i]);
